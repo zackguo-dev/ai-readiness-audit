@@ -1,0 +1,12 @@
+# Example Corp
+
+> 中小企業向けのクラウド会計サービスを提供しています。
+
+## ドキュメント
+
+- [導入ガイド](https://example.com/docs/start): はじめての方向け
+- [料金](https://example.com/pricing): プラン一覧
+
+## 会社情報
+
+- [会社概要](https://example.com/about): 沿革と所在地

@@ -1,0 +1,6 @@
+# 一般ボットは許可、GPTBotだけ全面ブロック
+User-agent: *
+Disallow:
+
+User-agent: GPTBot
+Disallow: /

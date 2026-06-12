@@ -1,0 +1,72 @@
+# AI可読性診断レポート
+
+**対象サイト:** {{ url }}
+**診断日時:** {{ fetched_at }}
+**診断項目:** {{ check_count }}項目（暫定版）
+
+---
+
+## 総合スコア: {{ overall_score }} / 100（{{ overall_label }}）
+
+> このスコアは「あなたのサイトが、AI（ChatGPTやGeminiなどの生成AI）にどれだけ
+> 読み取られやすいか」の目安です。点数が高いほど、AIの検索・回答に取り上げられる
+> 土台が整っています。
+
+{% if top_improvements %}
+## まず手をつけたい改善（効果の大きい順）
+
+{% for imp in top_improvements %}
+{{ loop.index }}. **{{ imp.text }}**
+   - 対応区分: {{ imp.effort_label }}{% if imp.cost_hint %}（費用目安: {{ imp.cost_hint }}）{% endif %}
+
+{% endfor %}
+{% else %}
+## まず手をつけたい改善
+
+現時点で大きな改善点は見つかりませんでした。
+{% endif %}
+
+---
+
+## 項目別評価
+
+{% for c in checks %}
+### {{ c.title }} — {{ c.score }}/100（{{ c.label }}）
+{% if c.skipped %}
+この項目は検証できませんでした（{{ c.skip_reason }}）。
+{% else %}
+{% if c.findings %}
+**分かったこと:**
+
+{% for f in c.findings %}
+- {{ f.message }}{% if f.detail %}
+  {{ f.detail }}{% endif %}
+{% endfor %}
+{% endif %}
+{% if c.self_recs %}
+**自分でできる改善（無料）:**
+
+{% for r in c.self_recs %}
+- {{ r.text }}
+{% endfor %}
+{% endif %}
+{% if c.vendor_recs %}
+**制作会社に依頼する改善:**
+
+{% for r in c.vendor_recs %}
+- {{ r.text }}{% if r.cost_hint %}（費用目安: {{ r.cost_hint }}）{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% endfor %}
+---
+
+## 注記（この診断の前提）
+
+- 本レポートは技術的な「AIへの読み取られやすさ」を診断するものです。検索順位や
+  コンテンツの内容そのものの良し悪しは評価していません。
+- llms.txt について: 現時点では主要なAIがこのファイルを参照することは限定的です。
+  設置は「低コストな将来投資」と位置づけており、効果を保証するものではありません。
+- これは2項目のみの暫定版です。今後 JavaScript依存度・構造化データ・見出し構造などの
+  項目を追加していきます。
