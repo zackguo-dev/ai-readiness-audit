@@ -23,7 +23,7 @@ uv run ai-audit run https://example.com --out report.md
 ## インストール
 
 ```bash
-git clone https://github.com/kaku101127/ai-readiness-audit
+git clone https://github.com/zackguo-dev/ai-readiness-audit
 cd ai-readiness-audit
 uv sync
 uv run playwright install chromium
