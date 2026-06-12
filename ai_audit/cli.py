@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from .checks import CHECKS
-from .report import build_report_data, render_html
+from .report import build_report_data, render_html, render_pdf
 from .report.json_writer import save_results_json
 from .target import TargetSite
 
@@ -27,7 +27,7 @@ def _main() -> None:
 def run(
     url: str = typer.Argument(..., help="診断対象のURL（例: https://example.com）"),
     out: Path = typer.Option(
-        Path("report.html"), "--out", "-o", help="レポートの出力先(.html)。"
+        Path("report.html"), "--out", "-o", help="レポートの出力先(.html または .pdf)。"
     ),
 ) -> None:
     """対象サイトを診断し、日本語HTMLレポートを出力する。"""
@@ -57,7 +57,23 @@ def run(
     html_path.write_text(html, encoding="utf-8")
     typer.echo(f"HTML保存: {html_path}", err=True)
 
-    out.write_text(html, encoding="utf-8")
+    # PDF も自動保存
+    try:
+        pdf_bytes = render_pdf(html)
+        pdf_path = json_path.with_suffix(".pdf")
+        pdf_path.write_bytes(pdf_bytes)
+        typer.echo(f"PDF保存: {pdf_path}", err=True)
+    except ImportError as exc:
+        typer.echo(f"PDF保存スキップ: {exc}", err=True)
+
+    if out.suffix.lower() == ".pdf":
+        try:
+            out.write_bytes(render_pdf(html))
+        except ImportError as exc:
+            typer.echo(f"エラー: {exc}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        out.write_text(html, encoding="utf-8")
     typer.echo(f"レポートを書き出しました: {out}", err=True)
 
 

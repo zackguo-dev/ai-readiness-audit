@@ -197,6 +197,29 @@ def render_html(data: ReportData) -> str:
 
 
 # ---------------------------------------------------------------------------
+# PDF レンダリング
+# ---------------------------------------------------------------------------
+
+def render_pdf(html: str) -> bytes:
+    """HTML 文字列を PDF バイト列に変換する。
+
+    WeasyPrint が利用できない環境では ImportError を送出する。
+    Windows では GTK/Cairo ランタイムが必要。インストール手順:
+      https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows
+    """
+    try:
+        from weasyprint import HTML as _HTML  # noqa: PLC0415
+    except (ImportError, OSError) as exc:
+        raise ImportError(
+            "WeasyPrint が利用できません。PDF 出力を使うには以下を確認してください:\n"
+            "  1. uv add weasyprint\n"
+            "  2. Windows の場合は GTK3 ランタイムが別途必要です:\n"
+            "     https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows"
+        ) from exc
+    return _HTML(string=html).write_pdf()
+
+
+# ---------------------------------------------------------------------------
 # Markdown レンダリング(後方互換)
 # ---------------------------------------------------------------------------
 

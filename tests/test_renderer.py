@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from ai_audit.checks.base import CheckResult, Finding, Recommendation, Severity
+import pytest
+
 from ai_audit.report.renderer import (
     ReportData,
     _score_color_hex,
@@ -12,6 +14,7 @@ from ai_audit.report.renderer import (
     build_report_data,
     render_html,
     render_markdown,
+    render_pdf,
     render_report,
 )
 
@@ -258,6 +261,38 @@ class TestRenderHtml:
     def test_meta_viewport_present(self):
         html = render_html(self._data())
         assert "viewport" in html
+
+
+# ---------------------------------------------------------------------------
+# render_pdf
+# ---------------------------------------------------------------------------
+
+try:
+    import weasyprint  # noqa: F401
+    _WEASYPRINT_OK = True
+except (ImportError, OSError):
+    _WEASYPRINT_OK = False
+
+
+class TestRenderPdf:
+    def _html(self) -> str:
+        return render_html(build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT))
+
+    @pytest.mark.skipif(not _WEASYPRINT_OK, reason="WeasyPrint not available")
+    def test_returns_bytes(self):
+        pdf = render_pdf(self._html())
+        assert isinstance(pdf, bytes)
+
+    @pytest.mark.skipif(not _WEASYPRINT_OK, reason="WeasyPrint not available")
+    def test_starts_with_pdf_magic_bytes(self):
+        pdf = render_pdf(self._html())
+        assert pdf[:4] == b"%PDF"
+
+    def test_importerror_message_contains_instructions(self, monkeypatch):
+        import sys
+        monkeypatch.setitem(sys.modules, "weasyprint", None)
+        with pytest.raises(ImportError, match="WeasyPrint"):
+            render_pdf("<html></html>")
 
 
 # ---------------------------------------------------------------------------
