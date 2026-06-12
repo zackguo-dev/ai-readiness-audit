@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 from .checks import CHECKS
-from .report import render_report
+from .report import build_report_data, render_html
 from .report.json_writer import save_results_json
 from .target import TargetSite
 
@@ -27,11 +26,11 @@ def _main() -> None:
 @app.command()
 def run(
     url: str = typer.Argument(..., help="診断対象のURL（例: https://example.com）"),
-    out: Optional[Path] = typer.Option(
-        None, "--out", "-o", help="レポートの出力先(.md)。未指定なら標準出力。"
+    out: Path = typer.Option(
+        Path("report.html"), "--out", "-o", help="レポートの出力先(.html)。"
     ),
 ) -> None:
-    """対象サイトを診断し、日本語Markdownレポートを出力する。"""
+    """対象サイトを診断し、日本語HTMLレポートを出力する。"""
     typer.echo(f"診断中: {url} ...", err=True)
     target = TargetSite.fetch(url)
 
@@ -44,16 +43,22 @@ def run(
 
     results = [module.run(target) for module in CHECKS]
     weights = {module.CHECK_ID: module.WEIGHT for module in CHECKS}
-    report = render_report(url, results, weights, fetched_at=target.fetched_at)
 
+    report_data = build_report_data(
+        target.final_url, results, weights, fetched_at=target.fetched_at
+    )
+    html = render_html(report_data)
+
+    # results/{domain}/{timestamp}.json と同階層に .html も保存
     json_path = save_results_json(url, target.final_url, target.fetched_at, results, weights)
     typer.echo(f"JSON保存: {json_path}", err=True)
 
-    if out:
-        out.write_text(report, encoding="utf-8")
-        typer.echo(f"レポートを書き出しました: {out}", err=True)
-    else:
-        typer.echo(report)
+    html_path = json_path.with_suffix(".html")
+    html_path.write_text(html, encoding="utf-8")
+    typer.echo(f"HTML保存: {html_path}", err=True)
+
+    out.write_text(html, encoding="utf-8")
+    typer.echo(f"レポートを書き出しました: {out}", err=True)
 
 
 if __name__ == "__main__":

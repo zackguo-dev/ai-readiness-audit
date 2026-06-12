@@ -1,13 +1,16 @@
-"""診断結果を日本語Markdownレポートに整形する。
+"""診断結果を日本語レポートに整形する。
 
-読者は技術者でない中小企業のマーケ担当者。誠実性ルール(効果を断定しない)を守る。
+HTML レポート(render_html)と Markdown レポート(render_markdown)の2つを提供する。
+render_report は render_markdown の後方互換エイリアス。
 総合スコアは各項目の WEIGHT による加重平均(スキップ項目は除外)。
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -21,6 +24,40 @@ _EFFORT_LABEL = {
 }
 
 
+# ---------------------------------------------------------------------------
+# HTML レポートのデータモデル
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CheckRow:
+    name: str
+    finding: str
+    score: int
+    is_primary: bool   # True = js_dependency → 「最重要」タグ表示
+
+
+@dataclass
+class ActionRow:
+    text: str
+    type: str                    # "self" | "professional"
+    cost: Optional[str] = None   # type=="professional" のときの費用目安
+
+
+@dataclass
+class ReportData:
+    url: str           # 表示用URL(final_url)
+    date: str          # "2026年6月12日"
+    score: int
+    status_label: str  # "良好" / "要改善" / "問題あり" / "重大"
+    summary: str
+    checks: list[CheckRow]    # is_primary 先・以降は score 昇順
+    actions: list[ActionRow]  # priority 降順
+
+
+# ---------------------------------------------------------------------------
+# スコアヘルパー(render_markdown・json_writer から共用)
+# ---------------------------------------------------------------------------
+
 def _overall_score(results: list[CheckResult], weights: dict[str, float]) -> int:
     scored = [r for r in results if not r.skipped]
     if not scored:
@@ -32,6 +69,137 @@ def _overall_score(results: list[CheckResult], weights: dict[str, float]) -> int
     return round(s / total_w)
 
 
+def _score_color_hex(score: int) -> str:
+    """スコア帯に応じた16進カラーコード。全色定義はここに集約する。"""
+    if score >= 70:
+        return "#639922"
+    if score >= 40:
+        return "#BA7517"
+    return "#E24B4A"
+
+
+# ---------------------------------------------------------------------------
+# HTML レポート用ヘルパー
+# ---------------------------------------------------------------------------
+
+def _status_label(score: int) -> str:
+    if score >= 70:
+        return "良好"
+    if score >= 50:
+        return "要改善"
+    if score >= 40:
+        return "問題あり"
+    return "重大"
+
+
+def _summary_text(score: int) -> str:
+    if score >= 70:
+        return "AIクローラーへの最適化が十分に整っています。"
+    if score >= 50:
+        return "いくつかの改善点があります。優先度の高いアクションから対応を始めてください。"
+    if score >= 40:
+        return "複数の課題が見つかりました。早めの対応をお勧めします。"
+    return "AIクローラーに読み取られにくい状態です。早急な対応が必要です。"
+
+
+def _primary_finding(r: CheckResult) -> str:
+    """チェック結果から代表所見を1行で返す。最も深刻度が高い所見を採用。"""
+    if r.skipped:
+        return r.skip_reason or "検証不可"
+    if not r.findings:
+        return "問題は見つかりませんでした"
+    return max(r.findings, key=lambda f: int(f.severity)).message
+
+
+# ---------------------------------------------------------------------------
+# ReportData 構築
+# ---------------------------------------------------------------------------
+
+def build_report_data(
+    url: str,
+    results: list[CheckResult],
+    weights: dict[str, float],
+    *,
+    fetched_at: datetime | None = None,
+) -> ReportData:
+    """CheckResult リストから HTML レポート用データモデルを生成する。
+
+    url には target.final_url を渡すこと。
+    """
+    fetched_at = fetched_at or datetime.now(timezone.utc)
+    score = _overall_score(results, weights)
+
+    rows = [
+        CheckRow(
+            name=r.title,
+            finding=_primary_finding(r),
+            score=r.score,
+            is_primary=(r.check_id == "js_dependency"),
+        )
+        for r in results
+    ]
+    # is_primary を先頭に、残りは score 昇順(問題が大きい順に上から並ぶ)
+    rows.sort(key=lambda x: (not x.is_primary, x.score))
+
+    all_recs = sorted(
+        (rec for r in results for rec in r.recommendations),
+        key=lambda rec: rec.priority,
+        reverse=True,
+    )
+    actions = [
+        ActionRow(
+            text=rec.text,
+            type="self" if rec.effort == "self" else "professional",
+            cost=rec.cost_hint or None,
+        )
+        for rec in all_recs
+    ]
+
+    d = fetched_at.astimezone(timezone.utc)
+    return ReportData(
+        url=url,
+        date=f"{d.year}年{d.month}月{d.day}日",
+        score=score,
+        status_label=_status_label(score),
+        summary=_summary_text(score),
+        checks=rows,
+        actions=actions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# HTML レンダリング
+# ---------------------------------------------------------------------------
+
+def render_html(data: ReportData) -> str:
+    env = Environment(
+        loader=FileSystemLoader(str(_TEMPLATE_DIR)),
+        autoescape=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    env.filters["score_color"] = _score_color_hex
+
+    # ドーナツの stroke-dashoffset はサーバ側で計算(JSなしで描画できるように)
+    dashoffset = round(314 * (1 - data.score / 100), 1)
+
+    return env.get_template("report.html.j2").render(
+        url=data.url,
+        date=data.date,
+        score=data.score,
+        score_color=_score_color_hex(data.score),
+        dashoffset=dashoffset,
+        status_label=data.status_label,
+        summary=data.summary,
+        checks=data.checks,
+        actions=data.actions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Markdown レンダリング(後方互換)
+# ---------------------------------------------------------------------------
+
 def _overall_label(score: int) -> str:
     if score >= 80:
         return "良好"
@@ -41,13 +209,12 @@ def _overall_label(score: int) -> str:
 
 
 def _top_improvements(results: list[CheckResult], limit: int = 3):
-    """全項目の改善提案を優先度順に集約して上位を返す。"""
     recs = [rec for r in results for rec in r.recommendations]
     recs.sort(key=lambda r: r.priority, reverse=True)
     return recs[:limit]
 
 
-def _build_context(url: str, results: list[CheckResult], weights, fetched_at):
+def _build_context(url, results, weights, fetched_at):
     overall = _overall_score(results, weights)
     checks_ctx = []
     for r in results:
@@ -83,7 +250,7 @@ def _build_context(url: str, results: list[CheckResult], weights, fetched_at):
     }
 
 
-def render_report(
+def render_markdown(
     url: str,
     results: list[CheckResult],
     weights: dict[str, float],
@@ -96,8 +263,9 @@ def render_report(
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    template = env.get_template("report.md.j2")
-    ctx = _build_context(
-        url, results, weights, fetched_at or datetime.now(timezone.utc)
-    )
-    return template.render(**ctx)
+    ctx = _build_context(url, results, weights, fetched_at or datetime.now(timezone.utc))
+    return env.get_template("report.md.j2").render(**ctx)
+
+
+# 後方互換エイリアス(test_report.py / json_writer.py が参照)
+render_report = render_markdown
