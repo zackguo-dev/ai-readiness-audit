@@ -172,3 +172,11 @@ uv run pytest -v                 # 詳細表示
 ## 開発ログ
 
 - 2026-06-12: v1完成。全6チェック・JSON保存・MD出力を確認(zenn.dev: 38/100)
+
+---
+
+## ライセンス
+
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/deed.ja)
+
+個人学習目的の閲覧・利用は自由。サービスとしての再販・商用利用は禁止。
