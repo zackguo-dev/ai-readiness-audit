@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from .checks import CHECKS
-from .report import build_report_data, render_html, render_pdf
+from .report import build_report_data, render_html, render_pdf, render_web_html
 from .report.json_writer import save_results_json
 from .target import TargetSite
 
@@ -53,6 +53,12 @@ def run(
     json_path = save_results_json(url, target.final_url, target.fetched_at, results, weights)
     typer.echo(f"JSON保存: {json_path}", err=True)
 
+    # web HTML（インタラクティブ）を自動保存
+    web_html = render_web_html(report_data)
+    web_html_path = json_path.with_name(json_path.stem + "_web.html")
+    web_html_path.write_text(web_html, encoding="utf-8")
+    typer.echo(f"WebHTML保存: {web_html_path}", err=True)
+
     html_path = json_path.with_suffix(".html")
     html_path.write_text(html, encoding="utf-8")
     typer.echo(f"HTML保存: {html_path}", err=True)
@@ -72,6 +78,8 @@ def run(
         except ImportError as exc:
             typer.echo(f"エラー: {exc}", err=True)
             raise typer.Exit(code=1)
+    elif out.name.endswith("_web.html") or out.name == "report_web.html":
+        out.write_text(web_html, encoding="utf-8")
     else:
         out.write_text(html, encoding="utf-8")
     typer.echo(f"レポートを書き出しました: {out}", err=True)

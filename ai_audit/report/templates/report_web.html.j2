@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI可読性診断レポート — {{ url }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #F7F6F2;
+  color: #1A1A2E;
+  padding: 1.5rem;
+}
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* ---- Hero ---- */
+.hero-card {
+  background: #F4F3F8;
+  border-radius: 12px;
+  padding: 1.75rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.hero-text-meta {
+  font-size: 11px;
+  color: #5A5A6E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.375rem;
+  word-break: break-all;
+}
+
+.hero-status {
+  font-size: 20px;
+  font-weight: 500;
+  color: #1A1A2E;
+  margin-bottom: 0.375rem;
+}
+
+.hero-summary {
+  font-size: 13px;
+  color: #5A5A6E;
+  line-height: 1.6;
+}
+
+/* ---- タブ ---- */
+.tab-bar {
+  background: #F4F3F8;
+  border-radius: 8px;
+  padding: 3px;
+  display: flex;
+  width: 100%;
+  margin-bottom: 0.875rem;
+}
+
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #5A5A6E;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0.5rem 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.tab-btn.active {
+  background: #FFFFFF;
+  border: 0.5px solid #E6E4DD;
+  color: #1A1A2E;
+}
+
+/* ---- アコーディオン ---- */
+.accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.check-card {
+  background: #FFFFFF;
+  border: 0.5px solid #E6E4DD;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.check-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  align-items: center;
+  user-select: none;
+}
+
+.check-header:hover {
+  background: #FAFAF8;
+}
+
+.check-name-col {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.check-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1A1A2E;
+}
+
+.primary-tag {
+  font-size: 10px;
+  background: #FCEBEB;
+  color: #A32D2D;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.check-score-col {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-bar-track {
+  width: 72px;
+  height: 5px;
+  background: #F4F3F8;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.score-number {
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.chevron {
+  font-size: 16px;
+  color: #5A5A6E;
+  transition: transform 0.2s;
+  display: inline-block;
+  line-height: 1;
+}
+
+.check-card.open .chevron {
+  transform: rotate(180deg);
+}
+
+.check-body {
+  display: none;
+  background: #F4F3F8;
+  border-top: 0.5px solid #E6E4DD;
+  padding: 0.75rem 1rem;
+}
+
+.check-card.open .check-body {
+  display: block;
+}
+
+.check-finding {
+  font-size: 13px;
+  color: #5A5A6E;
+  line-height: 1.6;
+  margin-bottom: 0.625rem;
+}
+
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rec-pill {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+
+.rec-pill.self {
+  background: #EAF3DE;
+  color: #27500A;
+}
+
+.rec-pill.professional {
+  background: #E6F1FB;
+  color: #0C447C;
+}
+
+/* ---- アクションリスト ---- */
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.action-card {
+  background: #FFFFFF;
+  border: 0.5px solid #E6E4DD;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.action-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.action-icon.self {
+  background: #EAF3DE;
+  color: #3B6D11;
+}
+
+.action-icon.professional {
+  background: #E6F1FB;
+  color: #185FA5;
+}
+
+.action-text-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-body {
+  font-size: 13px;
+  color: #1A1A2E;
+  line-height: 1.5;
+}
+
+.action-label {
+  font-size: 11px;
+  margin-top: 0.25rem;
+}
+
+.action-label.self {
+  color: #3B6D11;
+}
+
+.action-label.professional {
+  color: #185FA5;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Hero カード -->
+  <div class="hero-card">
+    <div class="hero-grid">
+      <!-- ドーナツチャート -->
+      <svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+        <g transform="rotate(-90, 48, 48)">
+          <circle cx="48" cy="48" r="40" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+          <circle cx="48" cy="48" r="40" fill="none" stroke="{{ score_color }}" stroke-width="10"
+            stroke-dasharray="251" stroke-dashoffset="{{ donut_offset }}" stroke-linecap="round"/>
+        </g>
+        <text x="48" y="44" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+          font-size="26" font-weight="500" fill="#1A1A2E">{{ score }}</text>
+        <text x="48" y="58" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+          font-size="11" fill="#5A5A6E">/100</text>
+      </svg>
+      <!-- テキスト -->
+      <div>
+        <div class="hero-text-meta">{{ url }} &nbsp;·&nbsp; {{ date }}</div>
+        <div class="hero-status">{{ status_label }}</div>
+        <div class="hero-summary">{{ summary }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- タブバー -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-summary" onclick="switchTab('summary', this)">サマリー</button>
+    <button class="tab-btn" id="tab-detail" onclick="switchTab('detail', this)">詳細</button>
+  </div>
+
+  <!-- サマリータブ -->
+  <div class="tab-panel" id="panel-summary">
+    <div class="accordion-list">
+      {% for check in checks %}
+      <div class="check-card" id="check-{{ loop.index }}">
+        <div class="check-header" onclick="toggleCheck('check-{{ loop.index }}')">
+          <!-- Col1: チェック名 -->
+          <div class="check-name-col">
+            <span class="check-name">{{ check.name }}</span>
+            {% if check.is_primary %}
+            <span class="primary-tag">最重要</span>
+            {% endif %}
+          </div>
+          <!-- Col2: バー + スコア -->
+          <div class="check-score-col">
+            <div class="score-bar-track">
+              <div class="score-bar-fill" style="width: {{ check.bar_width }}%; background: {{ check.score_color }};"></div>
+            </div>
+            <span class="score-number" style="color: {{ check.score_color }};">{{ check.score }}</span>
+          </div>
+          <!-- Col3: シェブロン -->
+          <span class="chevron">&#9662;</span>
+        </div>
+        <div class="check-body">
+          <div class="check-finding">{{ check.finding }}</div>
+          {% if check.recommendations %}
+          <div class="rec-list">
+            {% for rec in check.recommendations %}
+            {% if rec.type == "self" %}
+            <div class="rec-pill self">自社で対応可 — {{ rec.text }}</div>
+            {% else %}
+            <div class="rec-pill professional">制作会社へ依頼 — {{ rec.text }}{% if rec.cost %}（目安：{{ rec.cost }}）{% endif %}</div>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 詳細タブ -->
+  <div class="tab-panel" id="panel-detail" style="display: none;">
+    <div class="action-list">
+      {% for action in actions %}
+      <div class="action-card">
+        <div class="action-icon {{ action.type }}">
+          {% if action.type == "self" %}&#10003;{% else %}&#8599;{% endif %}
+        </div>
+        <div class="action-text-block">
+          <div class="action-body">{{ action.text }}</div>
+          <div class="action-label {{ action.type }}">
+            {% if action.type == "self" %}
+            自社で対応可
+            {% else %}
+            {% if action.cost %}Webサイトの制作会社へ依頼（目安：{{ action.cost }}）{% else %}Webサイトの制作会社へ依頼{% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+<script>
+function toggleCheck(id) {
+  var el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(function(p) {
+    p.style.display = 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(function(b) {
+    b.style.background = 'transparent';
+    b.style.border = 'none';
+    b.style.color = '#5A5A6E';
+  });
+  document.getElementById('panel-' + name).style.display = 'block';
+  btn.style.background = '#FFFFFF';
+  btn.style.border = '0.5px solid #E6E4DD';
+  btn.style.color = '#1A1A2E';
+}
+</script>
+</body>
+</html>

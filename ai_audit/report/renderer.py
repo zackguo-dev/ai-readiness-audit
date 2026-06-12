@@ -7,7 +7,7 @@ render_report は render_markdown の後方互換エイリアス。
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -34,6 +34,10 @@ class CheckRow:
     finding: str
     score: int
     is_primary: bool   # True = js_dependency → 「最重要」タグ表示
+    # 以下は web テンプレート用（静的テンプレートは使わない）
+    score_color: str = ""
+    bar_width: int = 0
+    recommendations: list = field(default_factory=list)
 
 
 @dataclass
@@ -135,6 +139,16 @@ def build_report_data(
             finding=_primary_finding(r),
             score=r.score,
             is_primary=(r.check_id == "js_dependency"),
+            score_color=_score_color_hex(r.score),
+            bar_width=r.score,
+            recommendations=[
+                ActionRow(
+                    text=rec.text,
+                    type="self" if rec.effort == "self" else "professional",
+                    cost=rec.cost_hint or None,
+                )
+                for rec in r.recommendations
+            ],
         )
         for r in results
     ]
@@ -189,6 +203,32 @@ def render_html(data: ReportData) -> str:
         score=data.score,
         score_color=_score_color_hex(data.score),
         dashoffset=dashoffset,
+        status_label=data.status_label,
+        summary=data.summary,
+        checks=data.checks,
+        actions=data.actions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Web HTML レンダリング（インタラクティブ）
+# ---------------------------------------------------------------------------
+
+def render_web_html(data: ReportData) -> str:
+    env = Environment(
+        loader=FileSystemLoader(str(_TEMPLATE_DIR)),
+        autoescape=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    env.filters["score_color"] = _score_color_hex
+    donut_offset = round(251 * (1 - data.score / 100), 1)
+    return env.get_template("report_web.html.j2").render(
+        url=data.url,
+        date=data.date,
+        score=data.score,
+        score_color=_score_color_hex(data.score),
+        donut_offset=donut_offset,
         status_label=data.status_label,
         summary=data.summary,
         checks=data.checks,

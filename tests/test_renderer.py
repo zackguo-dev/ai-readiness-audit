@@ -16,6 +16,7 @@ from ai_audit.report.renderer import (
     render_markdown,
     render_pdf,
     render_report,
+    render_web_html,
 )
 
 _DT = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
@@ -330,3 +331,98 @@ class TestBackwardCompat:
         md = render_report("https://example.com", results, weights)
         assert "総合スコア" in md
         assert "低コストな将来投資" in md
+
+
+# ---------------------------------------------------------------------------
+# render_web_html
+# ---------------------------------------------------------------------------
+
+class TestRenderWebHtml:
+    def _data(self) -> ReportData:
+        return build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT)
+
+    def test_returns_html_string(self):
+        html = render_web_html(self._data())
+        assert isinstance(html, str)
+        assert "<!DOCTYPE html>" in html
+
+    def test_contains_url(self):
+        html = render_web_html(self._data())
+        assert "example.com" in html
+
+    def test_contains_date(self):
+        html = render_web_html(self._data())
+        assert "2026年6月12日" in html
+
+    def test_contains_score(self):
+        data = self._data()
+        html = render_web_html(data)
+        assert str(data.score) in html
+
+    def test_contains_status_label(self):
+        data = self._data()
+        html = render_web_html(data)
+        assert data.status_label in html
+
+    def test_donut_offset_uses_251_circumference(self):
+        # web テンプレートは stroke-dasharray=251 を使う（静的テンプレートの314とは異なる）
+        r = CheckResult("bot_access", "bot", 0, findings=[], recommendations=[])
+        data = build_report_data("https://x.com", [r], {"bot_access": 1.0}, fetched_at=_DT)
+        html = render_web_html(data)
+        # score=0 → donut_offset = 251.0
+        assert "251" in html
+
+    def test_donut_offset_at_100(self):
+        r = CheckResult("bot_access", "bot", 100, findings=[], recommendations=[])
+        data = build_report_data("https://x.com", [r], {"bot_access": 1.0}, fetched_at=_DT)
+        html = render_web_html(data)
+        assert "stroke-dashoffset" in html
+
+    def test_score_color_present(self):
+        r = CheckResult("bot_access", "bot", 90, findings=[], recommendations=[])
+        data = build_report_data("https://x.com", [r], {"bot_access": 1.0}, fetched_at=_DT)
+        html = render_web_html(data)
+        assert "#639922" in html
+
+    def test_primary_tag_present(self):
+        html = render_web_html(self._data())
+        assert "最重要" in html
+
+    def test_tab_switcher_present(self):
+        html = render_web_html(self._data())
+        assert "サマリー" in html
+        assert "詳細" in html
+
+    def test_accordion_toggle_js_present(self):
+        html = render_web_html(self._data())
+        assert "toggleCheck" in html
+
+    def test_self_contained_no_external_deps(self):
+        html = render_web_html(self._data())
+        assert "googleapis.com" not in html
+        assert "cdn." not in html
+        assert "<script src" not in html
+
+    def test_recommendation_text_present(self):
+        html = render_web_html(self._data())
+        assert "SSRを導入する" in html
+
+    def test_self_recommendation_label(self):
+        html = render_web_html(self._data())
+        assert "自社で対応可" in html
+
+    def test_professional_recommendation_label_with_cost(self):
+        html = render_web_html(self._data())
+        assert "制作会社へ依頼" in html
+        assert "10〜30万円" in html
+
+    def test_meta_charset_present(self):
+        html = render_web_html(self._data())
+        assert 'charset="UTF-8"' in html or "charset=UTF-8" in html
+
+    def test_independent_from_static_render_html(self):
+        # render_html と render_web_html は独立して動作する
+        data = self._data()
+        static_html = render_html(data)
+        web_html = render_web_html(data)
+        assert static_html != web_html
