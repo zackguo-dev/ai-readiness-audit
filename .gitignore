@@ -9,7 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
-# 生成物(診断レポート)
+# 生成物(診断レポート・JSON結果)
 /report.md
 /report_*.md
 /reports/
+/results/
