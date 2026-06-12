@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Example SPA</title>
+  <meta name="description" content="クラウド会計サービス">
+  <style>body { margin: 0; } .hidden { display: none; }</style>
+</head>
+<body>
+  <div id="app">読み込み中...</div>
+  <noscript>JavaScriptを有効にしてください。</noscript>
+  <template><p>テンプレート内の非表示テキスト</p></template>
+  <svg viewBox="0 0 10 10"><text>SVG内テキスト</text></svg>
+  <script>
+    const data = "この文字列はテキストとしてカウントされてはいけない";
+    window.addEventListener("load", () => render(data));
+  </script>
+</body>
+</html>

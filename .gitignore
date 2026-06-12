@@ -11,4 +11,5 @@ wheels/
 
 # 生成物(診断レポート)
 /report.md
+/report_*.md
 /reports/

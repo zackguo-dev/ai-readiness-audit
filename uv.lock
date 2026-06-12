@@ -9,13 +9,13 @@ source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "playwright" },
     { name = "selectolax" },
     { name = "typer" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "playwright" },
     { name = "pytest" },
 ]
 
@@ -23,15 +23,13 @@ dev = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "playwright", specifier = ">=1.60.0" },
     { name = "selectolax", specifier = ">=0.4.10" },
     { name = "typer", specifier = ">=0.26.7" },
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "playwright", specifier = ">=1.60.0" },
-    { name = "pytest", specifier = ">=9.0.3" },
-]
+dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 
 [[package]]
 name = "annotated-doc"

@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
+    "playwright>=1.60.0",
     "selectolax>=0.4.10",
     "typer>=0.26.7",
 ]
@@ -16,7 +17,6 @@ ai-audit = "ai_audit.cli:app"
 
 [dependency-groups]
 dev = [
-    "playwright>=1.60.0",
     "pytest>=9.0.3",
 ]
 
