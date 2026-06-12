@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>@graph 形式</title>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "Example Corp",
+        "url": "https://example.com"
+      },
+      {
+        "@type": "Article",
+        "headline": "記事見出し",
+        "author": {"@type": "Person", "name": "著者"},
+        "datePublished": "2026-01-01"
+      }
+    ]
+  }
+  </script>
+</head>
+<body><h1>Example</h1></body>
+</html>

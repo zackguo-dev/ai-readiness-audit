@@ -1,7 +1,7 @@
 # AI Readiness Audit — プロジェクト憲法
 
 ## この環境について（足場メモ）
-- 単独プロジェクト。Nova Vault（`C:\Users\Tkaku\projects`）の**外**に置いてある（auto-commitフックの干渉を避けるため）。場所：`C:\Users\Tkaku\dev\ai-readiness-audit`
+- 単独プロジェクト。Nova Vault（`C:\Users\Tkaku\projects`）の**外**に置いてある（auto-commitフックの干渉を避けるため）。場所：`C:\Users\Tkaku\Product\dev\ai-readiness-audit`
 - パッケージ管理は **uv**。実行は `uv run ai-audit ...` / テストは `uv run pytest`
 - `.claude/agents/` のサブエージェントは**このディレクトリで `claude` を起動したときに有効**になる。委譲を効かせたいセッションは必ずここで起動すること
 
