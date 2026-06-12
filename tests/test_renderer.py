@@ -162,6 +162,28 @@ class TestBuildReportData:
         data = build_report_data("https://x.com", [r], {"bot_access": 1.0}, fetched_at=_DT)
         assert data.checks[0].finding == "重大所見"
 
+    def test_count_critical_warning_good(self):
+        # js_dependency=10(重大), llms_txt=50(要改善), bot_access=80(良好)
+        data = build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT)
+        assert data.count_critical == 1   # js_dependency=10
+        assert data.count_warning == 1    # llms_txt=50
+        assert data.count_good == 1       # bot_access=80
+
+    def test_actions_high_contains_professional_from_critical_check(self):
+        data = build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT)
+        # js_dependency score=10 < 40, effort="vendor" → actions_high
+        assert any("SSR" in a.text for a in data.actions_high)
+
+    def test_actions_mid_contains_self_actions(self):
+        data = build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT)
+        # effort="self" は全てmid
+        assert any(a.type == "self" for a in data.actions_mid)
+
+    def test_actions_low_contains_llms_txt_actions(self):
+        data = build_report_data("https://example.com", _results(), _WEIGHTS, fetched_at=_DT)
+        # llms_txt の recommendations → actions_low
+        assert any("llms" in a.text.lower() for a in data.actions_low)
+
 
 # ---------------------------------------------------------------------------
 # render_html
@@ -220,20 +242,16 @@ class TestRenderHtml:
         html = render_html(self._data())
         assert "最重要" in html
 
-    def test_donut_dashoffset_computed_correctly(self):
-        # score=10 → dashoffset = 314 * 0.9 = 282.6
-        r = CheckResult("js_dependency", "JS", 10, findings=[], recommendations=[])
-        data = build_report_data("https://x.com", [r], {"js_dependency": 1.0}, fetched_at=_DT)
-        html = render_html(data)
-        assert "stroke-dashoffset" in html
-        assert "282.6" in html
+    def test_page_break_structure_present(self):
+        # 3ページ構造を確認
+        html = render_html(self._data())
+        assert html.count("page-bar") >= 3
 
-    def test_donut_dashoffset_at_100(self):
-        # score=100 → dashoffset = 0.0
-        r = CheckResult("bot_access", "bot", 100, findings=[], recommendations=[])
-        data = build_report_data("https://x.com", [r], {"bot_access": 1.0}, fetched_at=_DT)
-        html = render_html(data)
-        assert "stroke-dashoffset=\"0.0\"" in html
+    def test_page_number_present(self):
+        html = render_html(self._data())
+        assert "1 / 3" in html
+        assert "2 / 3" in html
+        assert "3 / 3" in html
 
     def test_action_text_present(self):
         html = render_html(self._data())

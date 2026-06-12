@@ -56,6 +56,13 @@ class ReportData:
     summary: str
     checks: list[CheckRow]    # is_primary 先・以降は score 昇順
     actions: list[ActionRow]  # priority 降順
+    # 以下は P1/P3 用（デフォルト値付き・後方互換）
+    count_critical: int = 0   # checks with score < 40
+    count_warning: int = 0    # checks with score 40-69
+    count_good: int = 0       # checks with score >= 70
+    actions_high: list = field(default_factory=list)   # professional, check score < 40
+    actions_mid: list = field(default_factory=list)    # professional 40-69 + all self
+    actions_low: list = field(default_factory=list)    # llms_txt + 低優先度
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +176,31 @@ def build_report_data(
         for rec in all_recs
     ]
 
+    # count 系: results リストのスコアから
+    count_critical = sum(1 for r in results if r.score < 40)
+    count_warning  = sum(1 for r in results if 40 <= r.score < 70)
+    count_good     = sum(1 for r in results if r.score >= 70)
+
+    # アクション分類
+    actions_high: list[ActionRow] = []
+    actions_mid: list[ActionRow] = []
+    actions_low: list[ActionRow] = []
+    for r in results:
+        for rec in r.recommendations:
+            row = ActionRow(
+                text=rec.text,
+                type="self" if rec.effort == "self" else "professional",
+                cost=rec.cost_hint or None,
+            )
+            if r.check_id == "llms_txt":
+                actions_low.append(row)
+            elif rec.effort == "self":
+                actions_mid.append(row)   # 自社対応は全てミドル
+            elif r.score < 40:
+                actions_high.append(row)  # プロ依頼 × 重大 → 高
+            else:
+                actions_mid.append(row)   # プロ依頼 × 40+ → ミドル
+
     d = fetched_at.astimezone(timezone.utc)
     return ReportData(
         url=url,
@@ -178,6 +210,12 @@ def build_report_data(
         summary=_summary_text(score),
         checks=rows,
         actions=actions,
+        count_critical=count_critical,
+        count_warning=count_warning,
+        count_good=count_good,
+        actions_high=actions_high,
+        actions_mid=actions_mid,
+        actions_low=actions_low,
     )
 
 
@@ -193,8 +231,11 @@ def render_html(data: ReportData) -> str:
         lstrip_blocks=True,
     )
     env.filters["score_color"] = _score_color_hex
+    # スコア帯に応じた背景色・文字色フィルター（P1/P3バッジ用）
+    env.filters["score_bg"]   = lambda s: "#FCEBEB" if s < 40 else ("#FAEEDA" if s < 70 else "#EAF3DE")
+    env.filters["score_text"] = lambda s: "#A32D2D" if s < 40 else ("#854F0B" if s < 70 else "#3B6D11")
 
-    # ドーナツの stroke-dashoffset はサーバ側で計算(JSなしで描画できるように)
+    # 旧テンプレート互換で残す（テスト参照）
     dashoffset = round(314 * (1 - data.score / 100), 1)
 
     return env.get_template("report.html.j2").render(
@@ -207,6 +248,12 @@ def render_html(data: ReportData) -> str:
         summary=data.summary,
         checks=data.checks,
         actions=data.actions,
+        count_critical=data.count_critical,
+        count_warning=data.count_warning,
+        count_good=data.count_good,
+        actions_high=data.actions_high,
+        actions_mid=data.actions_mid,
+        actions_low=data.actions_low,
     )
 
 
