@@ -10,13 +10,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #fff; }
 
+    /* A4 = 210×297mm（= 595×842pt = 794×1123px@96dpi）。px指定は pt との取り違えだったため実寸 mm に修正。
+       height 固定 + overflow:hidden で1div=1ページを保証。
+       page-break-inside:avoid は 297mm 固定要素に付けると WeasyPrint が空白ページを挿入することがあるため付けない */
     .page {
-      width: 595px;
-      min-height: 842px;
+      width: 210mm;
+      height: 297mm;
       position: relative;
-      padding: 56px 52px;
+      padding: 20mm 18mm;
       page-break-after: always;
-      page-break-inside: avoid;
       overflow: hidden;
     }
     .page:last-child { page-break-after: auto; }
@@ -31,57 +33,69 @@
     /* 全ページ共通: ページ番号 */
     .page-num {
       position: absolute;
-      bottom: 32px; right: 52px;
+      bottom: 10mm; right: 18mm;
       font-size: 11px;
       color: #9090A0;
     }
 
-    /* clearfix */
-    .cf::after { content: ""; display: table; clear: both; }
-
-    /* WeasyPrint では display:grid がサポートされる場合があるが、
-       安全のため重要なレイアウトは float ベースで実装する */
-    .check-block, .act, .check-row { page-break-inside: avoid; }
+    /* WeasyPrint は「float の横に overflow:hidden の BFC を並べる」レイアウトを
+       サポートしない（BFC が float の下に落ちる）。多カラム行はすべて
+       display:table / table-cell で実装する（WeasyPrint は CSS table を完全サポート） */
 
     /* ---- ブランドヘッダー ---- */
+    .brand-header {
+      display: table;
+      width: 100%;
+      margin-bottom: 15mm;
+    }
+    .brand-left {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .brand-right {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: right;
+      font-size: 11px;
+      color: #9090A0;
+    }
     .brand-logo {
-      float: left;
       display: inline-block;
+      vertical-align: middle;
       width: 8px;
       height: 8px;
       border-radius: 2px;
       background: #4F46E5;
-      margin-top: 2px;
       margin-right: 6px;
     }
     .brand-name {
-      float: left;
+      display: inline-block;
+      vertical-align: middle;
       font-size: 12px;
       font-weight: 500;
       color: #4F46E5;
       text-transform: uppercase;
       letter-spacing: .08em;
     }
-    .brand-confidential {
-      float: right;
-      font-size: 11px;
-      color: #9090A0;
-    }
 
     /* ---- スコアブロック ---- */
+    /* display:table と border-radius/background の併用は WeasyPrint で動作する */
     .score-block {
       background: #F7F6FB;
       border-radius: 12px;
-      padding: 32px;
-      margin-bottom: 32px;
+      padding: 36px;
+      margin-bottom: 12mm;
+      display: table;
+      width: 100%;
     }
     .score-col-left {
-      float: left;
-      width: 120px;
+      display: table-cell;
+      width: 140px;
       text-align: center;
+      vertical-align: middle;
     }
     .score-num-large {
-      font-size: 64px;
+      font-size: 72px;
       font-weight: 500;
       line-height: 1;
       display: block;
@@ -103,8 +117,9 @@
       margin-top: 10px;
     }
     .score-col-right {
-      overflow: hidden;
-      padding-left: 24px;
+      display: table-cell;
+      vertical-align: middle;
+      padding-left: 32px;
     }
     .score-h1 {
       font-size: 22px;
@@ -124,22 +139,30 @@
     }
 
     /* ---- サマリーグリッド ---- */
+    /* border-spacing + 負マージンは右端が 24px ずれるため、セルの padding で
+       12px ギャップを配分する方式（左8 / 中4+4 / 右8 → カード幅が3枚とも等しい） */
     .summary-grid {
-      margin-bottom: 32px;
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+      margin-bottom: 12mm;
     }
     .summary-card {
-      float: left;
+      display: table-cell;
       width: 33.333%;
-      padding: 8px;
+      vertical-align: top;
     }
+    .summary-card-l { padding-right: 8px; }
+    .summary-card-m { padding-left: 4px; padding-right: 4px; }
+    .summary-card-r { padding-left: 8px; }
     .summary-card-inner {
       background: #F7F6FB;
       border-radius: 8px;
-      padding: 16px;
+      padding: 20px;
       text-align: center;
     }
     .summary-num {
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 500;
       display: block;
     }
@@ -160,42 +183,47 @@
       text-transform: uppercase;
       letter-spacing: .06em;
       color: #9090A0;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
     .check-score-row {
+      display: table;
+      width: 100%;
+      padding: 0;
       border-bottom: 0.5px solid #F0EFF8;
-      padding: 10px 0;
-      overflow: hidden;
     }
     .check-score-row.last { border-bottom: none; }
-    .check-score-right {
-      float: right;
-      width: 120px;
+    .csr-name {
+      display: table-cell;
+      vertical-align: middle;
+      padding: 12px 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1A1A2E;
+    }
+    .csr-bar {
+      display: table-cell;
+      vertical-align: middle;
+      width: 110px;
+      padding: 12px 0;
+    }
+    .csr-score {
+      display: table-cell;
+      vertical-align: middle;
+      width: 44px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 12px 0;
     }
     .score-bar-bg {
       height: 5px;
       border-radius: 3px;
       background: #EEEDF6;
-      margin-bottom: 4px;
-      overflow: hidden;
     }
     .score-bar-fill {
+      display: block;
       height: 100%;
       border-radius: 3px;
-    }
-    .score-bar-num {
-      font-size: 13px;
-      font-weight: 500;
-      text-align: right;
-      display: block;
-    }
-    .check-score-left {
-      overflow: hidden;
-    }
-    .check-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: #1A1A2E;
     }
     .primary-tag {
       font-size: 10px;
@@ -213,47 +241,56 @@
       font-weight: 500;
       text-transform: uppercase;
       color: #4F46E5;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       letter-spacing: .04em;
     }
-    .check-detail-row {
+    .check-row {
+      display: table;
+      width: 100%;
       border-bottom: 0.5px solid #F0EFF8;
-      overflow: hidden;
+      page-break-inside: avoid;
     }
-    .check-detail-row.last { border-bottom: none; }
-    .check-detail-left {
-      float: left;
-      width: 140px;
-      padding: 14px 16px 14px 0;
+    .check-row.last { border-bottom: none; }
+    .cr-left {
+      display: table-cell;
+      width: 170px;
+      vertical-align: top;
+      padding: 18px 16px 18px 0;
       border-right: 0.5px solid #F0EFF8;
     }
+    .cr-right {
+      display: table-cell;
+      vertical-align: top;
+      padding: 18px 0 18px 16px;
+    }
+    .cr-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1A1A2E;
+    }
     .detail-bar-wrap {
-      overflow: hidden;
       margin-top: 6px;
     }
     .detail-bar-bg {
-      float: left;
+      display: inline-block;
+      vertical-align: middle;
       width: 60px;
       height: 4px;
       border-radius: 2px;
       background: #EEEDF6;
-      margin-top: 4px;
-      overflow: hidden;
     }
     .detail-bar-fill {
+      display: block;
       height: 100%;
       border-radius: 2px;
     }
     .detail-score-num {
-      float: left;
+      display: inline-block;
+      vertical-align: middle;
       font-size: 12px;
       font-weight: 500;
       margin-left: 8px;
       line-height: 1;
-    }
-    .check-detail-right {
-      overflow: hidden;
-      padding: 14px 0 14px 16px;
     }
     .detail-badge {
       font-size: 10px;
@@ -263,14 +300,11 @@
       margin-bottom: 6px;
       display: inline-block;
     }
+    /* -webkit-line-clamp は WeasyPrint 非対応のため使わない（A4実寸なら2行所見でも収まる） */
     .detail-finding {
-      font-size: 12px;
+      font-size: 13px;
       color: #5A5A6E;
       line-height: 1.65;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
     }
 
     /* ---- P3 アクション ---- */
@@ -279,7 +313,7 @@
       font-weight: 500;
       text-transform: uppercase;
       color: #4F46E5;
-      margin-bottom: 20px;
+      margin-bottom: 14px;
       letter-spacing: .04em;
     }
     .act-section-label {
@@ -288,36 +322,43 @@
       color: #9090A0;
       text-transform: uppercase;
       letter-spacing: .04em;
-      margin: 20px 0 10px;
+      margin: 12px 0 6px;
     }
     .act-section-label.first { margin-top: 0; }
     .act {
-      padding: 14px 16px;
+      display: table;
+      width: 100%;
       border-radius: 8px;
-      margin-bottom: 8px;
-      overflow: hidden;
+      margin-bottom: 6px;
+      page-break-inside: avoid;
     }
     .act-high { background: #FCEBEB; border-left: 3px solid #E24B4A; }
     .act-mid  { background: #FAEEDA; border-left: 3px solid #BA7517; }
     .act-low  { background: #F7F6FB; border-left: 3px solid #4F46E5; }
     .act-num {
-      float: left;
-      font-size: 18px;
+      display: table-cell;
+      width: 26px;
+      vertical-align: top;
+      padding: 9px 0 9px 12px;
+      font-size: 15px;
       font-weight: 500;
-      min-width: 24px;
     }
     .act-num-high { color: #A32D2D; }
     .act-num-mid  { color: #854F0B; }
     .act-num-low  { color: #4F46E5; }
     .act-body {
-      overflow: hidden;
+      display: table-cell;
+      vertical-align: top;
+      padding: 9px 14px 9px 8px;
     }
     .act-text {
       font-size: 13px;
       font-weight: 500;
       color: #1A1A2E;
       line-height: 1.5;
-      margin-bottom: 4px;
+    }
+    .act-meta {
+      margin-top: 3px;
     }
     .act-badge-self {
       background: #EAF3DE;
@@ -350,14 +391,15 @@
   <div class="page">
 
     <!-- ブランドヘッダー -->
-    <div class="cf" style="margin-bottom:48px;">
-      <span class="brand-logo"></span>
-      <span class="brand-name">AI Readiness Audit</span>
-      <span class="brand-confidential">Confidential</span>
+    <div class="brand-header">
+      <div class="brand-left">
+        <span class="brand-logo"></span><span class="brand-name">AI Readiness Audit</span>
+      </div>
+      <div class="brand-right">Confidential</div>
     </div>
 
     <!-- スコアブロック -->
-    <div class="score-block cf">
+    <div class="score-block">
       <div class="score-col-left">
         <span class="score-num-large" style="color:{{ score_color }}">{{ score }}</span>
         <span class="score-denom">/100</span>
@@ -374,20 +416,20 @@
     </div>
 
     <!-- サマリーグリッド -->
-    <div class="summary-grid cf">
-      <div class="summary-card">
+    <div class="summary-grid">
+      <div class="summary-card summary-card-l">
         <div class="summary-card-inner">
           <span class="summary-num summary-num-critical">{{ count_critical }}</span>
           <span class="summary-label">重大な問題</span>
         </div>
       </div>
-      <div class="summary-card">
+      <div class="summary-card summary-card-m">
         <div class="summary-card-inner">
           <span class="summary-num summary-num-warning">{{ count_warning }}</span>
           <span class="summary-label">要改善</span>
         </div>
       </div>
-      <div class="summary-card">
+      <div class="summary-card summary-card-r">
         <div class="summary-card-inner">
           <span class="summary-num summary-num-good">{{ count_good }}</span>
           <span class="summary-label">良好</span>
@@ -398,18 +440,18 @@
     <!-- チェックスコアテーブル -->
     <div class="section-label">診断項目スコア</div>
     {% for check in checks %}
-    <div class="check-score-row cf{% if loop.last %} last{% endif %}">
-      <div class="check-score-right">
+    <div class="check-score-row{% if loop.last %} last{% endif %}">
+      <div class="csr-name">
+        {{ check.name }}
+        {% if check.is_primary %}<span class="primary-tag">最重要</span>{% endif %}
+      </div>
+      <div class="csr-bar">
         <div class="score-bar-bg">
           <div class="score-bar-fill"
                style="width:{{ check.score }}%;background:{{ check.score | score_color }}"></div>
         </div>
-        <span class="score-bar-num" style="color:{{ check.score | score_color }}">{{ check.score }}</span>
       </div>
-      <div class="check-score-left">
-        <span class="check-name">{{ check.name }}</span>
-        {% if check.is_primary %}<span class="primary-tag">最重要</span>{% endif %}
-      </div>
+      <div class="csr-score" style="color:{{ check.score | score_color }}">{{ check.score }}</div>
     </div>
     {% endfor %}
 
@@ -425,19 +467,19 @@
     <div class="p2-title">診断詳細 — 項目別所見</div>
 
     {% for check in checks %}
-    <div class="check-detail-row cf{% if loop.last %} last{% endif %}">
-      <div class="check-detail-left">
-        <span class="check-name">{{ check.name }}</span>
+    <div class="check-row{% if loop.last %} last{% endif %}">
+      <div class="cr-left">
+        <span class="cr-name">{{ check.name }}</span>
         {% if check.is_primary %}<span class="primary-tag">最重要</span>{% endif %}
-        <div class="detail-bar-wrap cf">
-          <div class="detail-bar-bg">
-            <div class="detail-bar-fill"
-                 style="width:{{ check.score }}%;background:{{ check.score | score_color }}"></div>
-          </div>
+        <div class="detail-bar-wrap">
+          <span class="detail-bar-bg">
+            <span class="detail-bar-fill"
+                  style="width:{{ check.score }}%;background:{{ check.score | score_color }}"></span>
+          </span>
           <span class="detail-score-num" style="color:{{ check.score | score_color }}">{{ check.score }}</span>
         </div>
       </div>
-      <div class="check-detail-right">
+      <div class="cr-right">
         <span class="detail-badge"
               style="background:{{ check.score | score_bg }};color:{{ check.score | score_text }}">
           {% if check.score < 40 %}重大{% elif check.score < 70 %}要改善{% else %}良好{% endif %}
@@ -461,11 +503,11 @@
     {% if actions_high %}
     <div class="act-section-label first">高優先度 — 早急に対応</div>
     {% for action in actions_high %}
-    <div class="act act-high cf">
+    <div class="act act-high">
       <div class="act-num act-num-high">{{ loop.index }}</div>
       <div class="act-body">
         <div class="act-text">{{ action.text }}</div>
-        <div>
+        <div class="act-meta">
           {% if action.type == "self" %}
           <span class="act-badge-self">自社で対応可</span>
           {% else %}
@@ -481,11 +523,11 @@
     {% if actions_mid %}
     <div class="act-section-label{% if not actions_high %} first{% endif %}">中優先度 — 1〜3ヶ月以内に対応</div>
     {% for action in actions_mid %}
-    <div class="act act-mid cf">
+    <div class="act act-mid">
       <div class="act-num act-num-mid">{{ loop.index }}</div>
       <div class="act-body">
         <div class="act-text">{{ action.text }}</div>
-        <div>
+        <div class="act-meta">
           {% if action.type == "self" %}
           <span class="act-badge-self">自社で対応可</span>
           {% else %}
@@ -501,11 +543,11 @@
     {% if actions_low %}
     <div class="act-section-label{% if not actions_high and not actions_mid %} first{% endif %}">低優先度 — 将来への備え</div>
     {% for action in actions_low %}
-    <div class="act act-low cf">
+    <div class="act act-low">
       <div class="act-num act-num-low">{{ loop.index }}</div>
       <div class="act-body">
         <div class="act-text">{{ action.text }}</div>
-        <div>
+        <div class="act-meta">
           {% if action.type == "self" %}
           <span class="act-badge-self">自社で対応可</span>
           {% else %}
@@ -519,9 +561,9 @@
     {% endif %}
 
     <!-- ノートボックス -->
-    <div style="margin-top:28px;padding:14px 16px;background:#F7F6FB;border:0.5px solid #E6E4DD;border-radius:8px;">
+    <div style="margin-top:14px;padding:12px 14px;background:#F7F6FB;border:0.5px solid #E6E4DD;border-radius:8px;">
       <div style="font-size:11px;font-weight:500;color:#4F46E5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">本診断について</div>
-      <div style="font-size:12px;color:#5A5A6E;line-height:1.7;">本レポートはWebサイトの「AIへの読み取られやすさ」を技術的に診断するものです。検索順位やコンテンツの品質は評価対象外です。llms.txtの効果は現時点で限定的であり、効果を保証するものではありません。</div>
+      <div style="font-size:12px;color:#5A5A6E;line-height:1.6;">本レポートはWebサイトの「AIへの読み取られやすさ」を技術的に診断するものです。検索順位やコンテンツの品質は評価対象外です。llms.txtの効果は現時点で限定的であり、効果を保証するものではありません。</div>
     </div>
 
     <div class="page-bar"></div>
