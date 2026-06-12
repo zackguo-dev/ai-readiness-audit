@@ -1,26 +1,32 @@
 # ai-readiness-audit
 
-WebサイトがAIクローラーにどれだけ読めるかを診断するCLIツール。  
-個人事業「AI可読性診断サービス」の商売道具。**レポート品質=商品品質。**
+Diagnoses how well a website can be read by AI crawlers (ChatGPT, Gemini, Perplexity, etc.).
+A CLI tool powering the "AI Readiness Audit" consulting service.
+
+**Report quality = product quality.**
 
 ---
 
-## クイックスタート
+## Quick start
 
 ```bash
-# 診断実行
 uv run ai-audit run https://example.com
+```
 
-# レポートをファイルに保存
-uv run ai-audit run https://example.com --out report.md
+Outputs on every run (auto-saved to `results/{domain}/{timestamp}/`):
+- `report.pdf` — 3-page A4 professional report
+- `report_web.html` — interactive report (accordion + tabs)
+- `result.json` — machine-readable raw data for trend tracking
 
-# 結果はJSON形式でも自動保存される
-# → results/{ドメイン}/{タイムスタンプ}.json
+Manual export:
+```bash
+uv run ai-audit run https://example.com --out report.pdf
+uv run ai-audit run https://example.com --out report_web.html
 ```
 
 ---
 
-## インストール
+## Install
 
 ```bash
 git clone https://github.com/zackguo-dev/ai-readiness-audit
@@ -29,32 +35,60 @@ uv sync
 uv run playwright install chromium
 ```
 
-**動作環境:** Python 3.12+ / uv
+**Requirements:** Python 3.12+ / uv
+
+**PDF export (WeasyPrint):** Requires GTK3 runtime on Windows.
+Download installer: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
 
 ---
 
-## 診断項目(v1)
+## Output formats
 
-| # | チェック名 | 概要 | 重み |
+| Format | Use case | Auto-saved |
+|---|---|---|
+| PDF (3-page A4) | Client delivery, printing | ✓ |
+| Interactive HTML | Browser review, internal sharing | ✓ |
+| JSON | Trend tracking, before/after comparison | ✓ |
+
+---
+
+## Diagnosis checks (v1)
+
+| # | Check | Description | Weight |
 |---|---|---|---|
-| 1 | bot_access | 主要AIボット8種のアクセス可否(robots.txt+実HEADリクエスト) | 高 |
-| 2 | llms_txt | llms.txt / llms-full.txt の存在とフォーマット | 低 |
-| 3 | js_dependency | 静的HTML vs Playwrightレンダリング後のテキスト量比較 | 最高 |
-| 4 | structured_data | JSON-LD(Schema.org)の実装状況と必須プロパティ欠落 | 高 |
-| 5 | semantic_html | 見出し階層・alt・meta description・OGP | 中 |
-| 6 | freshness | 更新日マークアップ・sitemap.xml | 中 |
+| 1 | bot_access | Access status for 8 major AI crawlers via robots.txt + live HEAD requests | High |
+| 2 | llms_txt | Presence and format validity of llms.txt / llms-full.txt | Low |
+| 3 | js_dependency | Static HTML vs Playwright-rendered text volume comparison | **Highest** |
+| 4 | structured_data | JSON-LD (Schema.org) implementation and missing required properties | High |
+| 5 | semantic_html | Heading hierarchy, alt attributes, meta description, OGP | Medium |
+| 6 | freshness | Date markup and sitemap.xml presence | Medium |
 
-**監視対象AIボット(bot_access):**
+**Monitored AI crawlers (bot_access):**
 GPTBot / ClaudeBot / Claude-Web / PerplexityBot / Google-Extended / CCBot / Bytespider / meta-externalagent
 
 ---
 
-## プロジェクト構成
+## Report structure
+
+### PDF (3 pages)
+
+- **Page 1 — Summary:** Total score, critical/warning/good counts, score bar for all 6 checks
+- **Page 2 — Detail:** Findings per check (what was found and why it matters)
+- **Page 3 — Action roadmap:** Prioritized improvement actions (high / medium / low), each labeled "自社で対応可" or "Webサイトの制作会社へ依頼"
+
+### Interactive HTML
+
+- Tab 1 (サマリー): Click-to-expand accordion rows — each check shows score bar + findings + recommendations
+- Tab 2 (詳細): Full action list with priority badges and cost estimates
+
+---
+
+## Project structure
 
 ```
 ai_audit/
-  cli.py              # typerエントリポイント
-  target.py           # TargetSite: 1回フェッチして全checkで使い回す中核オブジェクト
+  cli.py                  # typer entry point
+  target.py               # TargetSite: fetch once, reuse across all checks
   checks/
     bot_access.py
     llms_txt.py
@@ -63,119 +97,114 @@ ai_audit/
     semantic_html.py
     freshness.py
   report/
-    renderer.py       # Jinja2でMarkdown生成
-    templates/        # レポートテンプレート
-results/              # 診断結果JSON(自動生成)
+    renderer.py            # render_html() → PDF, render_web_html() → interactive
+    templates/
+      report.html.j2       # static template for PDF (WeasyPrint)
+      report_web.html.j2   # interactive template for browser
+results/                   # auto-saved outputs (gitignored)
+docs/
+  SERVICE_SPEC.md          # technical spec for partners and clients
+  USER_GUIDE.md            # how to read the report (for non-technical clients)
 tests/
-  fixtures/           # HTMLフィクスチャ(実サイトに依存しないテスト用)
-.claude/agents/       # MasterClaude配下のサブエージェント定義
-CLAUDE.md             # 開発憲法(エージェントへの指示を含む)
+  fixtures/                # HTML fixtures for offline testing
+.claude/agents/            # sub-agent definitions for Claude Code
+CLAUDE.md                  # project constitution
 ```
 
 ---
 
-## TargetSite 仕様
+## Architecture
 
-```python
-@dataclass
-class TargetSite:
-    url: str              # 正規化済み入力URL
-    final_url: str        # リダイレクト後URL
-    status: int
-    headers: dict[str, str]
-    html: str             # 静的HTML(httpx GET)
-    robots_txt: str|None  # なければNone
-    llms_txt: str|None
-    llms_full_txt: str|None
-    fetched_at: datetime
-    errors: list[str]     # 取得失敗の記録
+### TargetSite
 
-    @cached_property
-    def tree(self): ...   # selectolaxで遅延パース
+Fetches all required resources once (HTML, robots.txt, llms.txt, llms-full.txt) with 1-second intervals between requests. All checks read from this cached object — no check fetches independently.
 
-    @classmethod
-    def fetch(cls, url, *, timeout=10, retries=2,
-              delay=1.0, user_agent="ai-audit/0.1") -> "TargetSite":
-        # ページ→robots→llms→llms-full を1秒以上あけて順に取得
-        # final_urlとurlが別ドメインの場合はerrors[]に記録してレポートに明記
-```
+Exception: `bot_access` sends UA-specific HEAD requests (1-second intervals, 8 bots).
 
-**設計原則:** checkは自分でフェッチしない。取得済みデータだけを参照する。  
-例外: bot_access のUA別HEADリクエストのみ、check側が1秒間隔で実行。
-
----
-
-## CheckResult 仕様
+### CheckResult
 
 ```python
 @dataclass
 class CheckResult:
-    score: int                    # 0-100
-    findings: list[str]           # 発見した問題(日本語)
-    recommendations: list[dict]   # 改善提案
-    # recommendations の各要素:
-    # {
-    #   "text": "提案内容",
-    #   "type": "self" | "professional",  # 自分でできる / 制作会社に依頼
-    #   "cost": "費用目安(typeがprofessionalの場合)",
-    #   "priority": "high" | "medium" | "low"
-    # }
+    score: int                    # 0–100
+    findings: list[str]           # issues found (Japanese)
+    recommendations: list[dict]   # {text, type: "self"|"professional", cost, priority}
+```
+
+### ReportData (renderer input)
+
+Key computed fields (all calculated in `renderer.py`, not in templates):
+
+```python
+score_color: str          # hex based on score tier
+donut_offset: float       # SVG stroke-dashoffset for donut chart
+count_critical: int       # checks with score < 40
+count_warning: int        # checks with score 40–69
+count_good: int           # checks with score >= 70
+actions_high: list        # professional actions from checks < 40
+actions_mid: list         # professional actions 40–69 + all self-service actions
+actions_low: list         # llms.txt and low-priority items
 ```
 
 ---
 
-## エージェント体制(Claude Code)
+## Agent structure (Claude Code)
 
-| エージェント | 役割 | 起動タイミング |
+| Agent | Role | When to use |
 |---|---|---|
-| check-builder | 診断モジュール実装 | checks/の実装・変更時 |
-| test-guardian | テスト作成・実行 | 実装完了直後(省略禁止) |
-| report-craftsman | レポート文言・テンプレート | 日本語出力の変更時 |
-| scope-keeper | スコープ監視・セッション管理 | 開始時・終了時・脱線時 |
+| check-builder | Implement check modules | Any change to `checks/` |
+| test-guardian | Write and run tests | After every implementation (mandatory) |
+| report-craftsman | Report copy and templates | Any change to Japanese output or templates |
+| scope-keeper | Scope guard + session management | Start, end, and any scope-creep moment |
 
 ---
 
-## テスト
+## Testing
 
 ```bash
-uv run pytest                    # 全テスト
-uv run pytest tests/test_bot.py  # 項目を絞る
-uv run pytest -v                 # 詳細表示
+python -m pytest                    # all tests (208 passing)
+python -m pytest tests/test_bot.py  # specific module
+python -m pytest -v                 # verbose
 ```
 
-**方針:** 各checkにつき最低3ケース(正常系/問題検出系/壊れた入力)。  
-実サイトへのネットワークアクセスは自分のサイト以外で使わない。
+Note: Use `python -m pytest` instead of `uv run pytest` (uv trampoline issue on this machine, no functional impact).
+
+Playwright-dependent tests skip gracefully when GTK3 is not installed.
 
 ---
 
-## バージョン管理・リリース方針
+## Versioning
 
-| バージョン | 内容 |
-|---|---|
-| v1(現在) | 診断6項目・Markdownレポート・JSONログ |
-| v2(予定) | LLM APIでのAI言及モニタリング(別リポジトリ) |
-| 未定 | PDF納品・GUI・SEO順位チェック |
+| Version | Status | Content |
+|---|---|---|
+| v1 (current) | Complete | 6 checks, PDF (3-page), interactive HTML, JSON log |
+| v2 (planned) | — | AI mention monitoring via LLM API (separate repo) |
 
-**スコープ外(v1では追加しない):** 上記「未定」欄のもの。アイデアはBACKLOG.mdへ。
-
----
-
-## 診断倫理・利用上の注意
-
-- 他者のサイトを診断する前に必ず許可を取ること
-- bot_accessのHEADリクエストはUA偽装ではなく正規のクローラーと同じ動作
-- レポートで「AIに必ず引用される」等の断定表現を使わないこと(report-craftsmanに組込済み)
-- llms.txtの効果は現時点で限定的。顧客への説明時も正直に伝える
+Items explicitly out of scope for v1: SEO ranking, content quality scoring, GUI, SaaS.
 
 ---
 
-## 開発ログ
+## Ethics and usage
 
-- 2026-06-12: v1完成。全6チェック・JSON保存・MD出力を確認(zenn.dev: 38/100)
+- Always obtain permission before diagnosing a site you don't own
+- Never claim "your site will definitely be cited by AI" — the report never makes this guarantee
+- llms.txt effectiveness is currently limited; the report states this honestly
+- Score color rules: 0–39 red (critical), 40–69 amber (warning), 70–100 green (good)
 
 ---
 
-## ライセンス
+## Development log
+
+| Date | Commit | Change |
+|---|---|---|
+| 2026-06-12 | 64b765b | v1 complete: 6 checks, JSON + MD output, tests passing |
+| 2026-06-12 | d77ab13 | Static HTML report template |
+| 2026-06-12 | 04b54af | PDF export via WeasyPrint |
+| 2026-06-12 | 662a7da | PDF page-break and layout fix |
+| 2026-06-13 | 4e80138 | Interactive web HTML report (accordion + tabs) |
+| 2026-06-13 | f847462 | 3-page PDF redesign (brand header, summary grid, action roadmap) |
+
+---
 
 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/deed.ja)
 
