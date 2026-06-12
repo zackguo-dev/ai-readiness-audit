@@ -32,16 +32,21 @@
 
 {% for c in checks %}
 ### {{ c.title }} — {{ c.score }}/100（{{ c.label }}）
+
 {% if c.skipped %}
 この項目は検証できませんでした（{{ c.skip_reason }}）。
+
 {% else %}
 {% if c.findings %}
 **分かったこと:**
 
 {% for f in c.findings %}
-- {{ f.message }}{% if f.detail %}
-  {{ f.detail }}{% endif %}
+- {{ f.message }}
+{% if f.detail %}
+  {{ f.detail }}
+{% endif %}
 {% endfor %}
+
 {% endif %}
 {% if c.self_recs %}
 **自分でできる改善（無料）:**
@@ -49,16 +54,17 @@
 {% for r in c.self_recs %}
 - {{ r.text }}
 {% endfor %}
+
 {% endif %}
 {% if c.vendor_recs %}
 **制作会社に依頼する改善:**
 
 {% for r in c.vendor_recs %}
-- {{ r.text }}{% if r.cost_hint %}（費用目安: {{ r.cost_hint }}）{% endif %}
+- {{ r.text }}{{ "（費用目安: " + r.cost_hint + "）" if r.cost_hint else "" }}
 {% endfor %}
-{% endif %}
-{% endif %}
 
+{% endif %}
+{% endif %}
 {% endfor %}
 ---
 
