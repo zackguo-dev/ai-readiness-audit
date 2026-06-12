@@ -9,6 +9,7 @@ import typer
 
 from .checks import CHECKS
 from .report import render_report
+from .report.json_writer import save_results_json
 from .target import TargetSite
 
 app = typer.Typer(
@@ -44,6 +45,9 @@ def run(
     results = [module.run(target) for module in CHECKS]
     weights = {module.CHECK_ID: module.WEIGHT for module in CHECKS}
     report = render_report(url, results, weights, fetched_at=target.fetched_at)
+
+    json_path = save_results_json(url, target.final_url, target.fetched_at, results, weights)
+    typer.echo(f"JSON保存: {json_path}", err=True)
 
     if out:
         out.write_text(report, encoding="utf-8")
