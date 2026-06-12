@@ -5,20 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI可読性診断レポート – {{ url }}</title>
   <style>
+    @page { size: A4; margin: 1.8cm 1.8cm; }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: #F7F6F2;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #1A1916;
-      padding: 2rem 1.5rem;
+      padding: 1.5rem;
       line-height: 1.5;
     }
     .container {
       max-width: 680px;
       margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
+    }
+    .container > * {
+      margin-bottom: 1.5rem;
+    }
+    .container > *:last-child {
+      margin-bottom: 0;
     }
 
     /* ---- Hero ---- */
@@ -27,36 +32,52 @@
       border: 0.5px solid #E6E4DD;
       border-radius: 12px;
       padding: 2rem;
-      text-align: center;
+      page-break-after: avoid;
+      break-after: avoid;
     }
     .hero-meta {
       font-size: 12px;
       color: #6B6860;
       margin-bottom: 1.25rem;
+      text-align: center;
+    }
+    /* Two-column: donut left, text right — floats for WeasyPrint */
+    .hero-body {
+      overflow: hidden;
+    }
+    .hero-donut {
+      float: left;
+      width: 130px;
+      text-align: center;
+    }
+    .hero-text {
+      overflow: hidden;
+      padding-left: 1.5rem;
+      padding-top: 0.75rem;
     }
     .donut-wrap {
       position: relative;
       width: 120px;
       height: 120px;
-      margin: 0 auto 1rem;
+      margin: 0 auto 0.5rem;
     }
     .donut-label {
       position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      top: 0; left: 0; right: 0; bottom: 0;
+      text-align: center;
+      padding-top: 34px;
     }
     .donut-score {
       font-size: 32px;
       font-weight: 500;
       line-height: 1;
+      display: block;
     }
     .donut-denom {
       font-size: 11px;
       color: #6B6860;
       margin-top: 2px;
+      display: block;
     }
     .status-label {
       font-size: 18px;
@@ -66,8 +87,6 @@
     .summary {
       font-size: 13px;
       color: #6B6860;
-      max-width: 380px;
-      margin: 0 auto;
     }
 
     /* ---- Section label ---- */
@@ -78,35 +97,40 @@
       letter-spacing: 0.06em;
       color: #6B6860;
       margin-bottom: 0.75rem;
+      page-break-before: avoid;
+      break-before: avoid;
+      page-break-after: avoid;
+      break-after: avoid;
     }
-    .card-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+    .card-list > * {
+      margin-bottom: 0.5rem;
+    }
+    .card-list > *:last-child {
+      margin-bottom: 0;
     }
 
-    /* ---- Score rows ---- */
+    /* ---- Score rows — float layout for WeasyPrint ---- */
     .score-card {
       background: #fff;
       border: 0.5px solid #E6E4DD;
       border-radius: 8px;
       padding: 0.75rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .score-right {
+      float: right;
+      width: 140px;
+      text-align: right;
+      padding-top: 4px;
     }
     .score-left {
-      flex: 1;
-      min-width: 0;
+      overflow: hidden;
     }
     .score-name {
       font-size: 14px;
       font-weight: 500;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 4px;
     }
     .primary-tag {
       font-size: 11px;
@@ -114,7 +138,8 @@
       background: #FCEBEB;
       padding: 2px 6px;
       border-radius: 4px;
-      margin-left: 2px;
+      margin-left: 4px;
+      vertical-align: middle;
     }
     .score-finding {
       font-size: 12px;
@@ -124,56 +149,67 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .score-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
     .score-bar-wrap {
+      display: inline-block;
+      vertical-align: middle;
       width: 88px;
       height: 6px;
       background: #F7F6F2;
       border-radius: 3px;
       overflow: hidden;
+      margin-right: 6px;
     }
     .score-bar-fill {
       height: 100%;
       border-radius: 3px;
     }
     .score-num {
+      display: inline-block;
+      vertical-align: middle;
       font-size: 13px;
       font-weight: 500;
-      width: 2.5rem;
+      width: 2.2rem;
       text-align: right;
     }
 
-    /* ---- Action rows ---- */
+    /* ---- Action rows — float layout for WeasyPrint ---- */
     .action-card {
       background: #fff;
       border: 0.5px solid #E6E4DD;
       border-radius: 8px;
       padding: 0.875rem 1rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .action-icon {
+      float: left;
       width: 32px;
       height: 32px;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      text-align: center;
+      padding-top: 8px;
     }
     .action-icon-self { background: #EAF3DE; }
     .action-icon-pro  { background: #E6F1FB; }
-    .action-body { flex: 1; }
+    .action-body {
+      overflow: hidden;
+      margin-left: 44px;
+    }
     .action-text { font-size: 13px; line-height: 1.5; }
     .action-type { font-size: 11px; margin-top: 3px; }
     .action-type-self { color: #3B6D11; }
     .action-type-pro  { color: #185FA5; }
+
+    /* ---- @media print — mirrors all rules above for completeness ---- */
+    @media print {
+      @page { size: A4; margin: 1.8cm 1.8cm; }
+      .hero          { page-break-after: avoid; break-after: avoid; }
+      .section-label { page-break-before: avoid; break-before: avoid;
+                       page-break-after: avoid;  break-after: avoid; }
+      .score-card,
+      .action-card   { page-break-inside: avoid; break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
@@ -182,22 +218,28 @@
   <!-- Hero -->
   <div class="hero">
     <div class="hero-meta">{{ url }} &nbsp;·&nbsp; {{ date }}</div>
-    <div class="donut-wrap">
-      <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
-        <circle cx="60" cy="60" r="50" fill="none" stroke="#F7F6F2" stroke-width="12"/>
-        <circle cx="60" cy="60" r="50" fill="none"
-                stroke="{{ score_color }}" stroke-width="12"
-                stroke-dasharray="314"
-                stroke-dashoffset="{{ dashoffset }}"
-                transform="rotate(-90 60 60)"/>
-      </svg>
-      <div class="donut-label">
-        <span class="donut-score" style="color:{{ score_color }}">{{ score }}</span>
-        <span class="donut-denom">/100</span>
+    <div class="hero-body">
+      <div class="hero-donut">
+        <div class="donut-wrap">
+          <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#F7F6F2" stroke-width="12"/>
+            <circle cx="60" cy="60" r="50" fill="none"
+                    stroke="{{ score_color }}" stroke-width="12"
+                    stroke-dasharray="314"
+                    stroke-dashoffset="{{ dashoffset }}"
+                    transform="rotate(-90 60 60)"/>
+          </svg>
+          <div class="donut-label">
+            <span class="donut-score" style="color:{{ score_color }}">{{ score }}</span>
+            <span class="donut-denom">/100</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-text">
+        <div class="status-label" style="color:{{ score_color }}">{{ status_label }}</div>
+        <div class="summary">{{ summary }}</div>
       </div>
     </div>
-    <div class="status-label" style="color:{{ score_color }}">{{ status_label }}</div>
-    <div class="summary">{{ summary }}</div>
   </div>
 
   <!-- 項目別スコア -->
@@ -206,19 +248,19 @@
     <div class="card-list">
       {% for check in checks %}
       <div class="score-card">
-        <div class="score-left">
-          <div class="score-name">
-            {{ check.name }}
-            {% if check.is_primary %}<span class="primary-tag">最重要</span>{% endif %}
-          </div>
-          <div class="score-finding">{{ check.finding }}</div>
-        </div>
         <div class="score-right">
           <div class="score-bar-wrap">
             <div class="score-bar-fill"
                  style="width:{{ check.score }}%;background:{{ check.score | score_color }}"></div>
           </div>
           <span class="score-num" style="color:{{ check.score | score_color }}">{{ check.score }}</span>
+        </div>
+        <div class="score-left">
+          <div class="score-name">
+            {{ check.name }}
+            {% if check.is_primary %}<span class="primary-tag">最重要</span>{% endif %}
+          </div>
+          <div class="score-finding">{{ check.finding }}</div>
         </div>
       </div>
       {% endfor %}
