@@ -7,7 +7,7 @@
 
 ## 次セッション以降の予定（v1スコープ内・順序固定）
 - [x] js_dependency チェック（Playwrightレンダリング比較）
-- [ ] structured_data チェック（JSON-LD抽出）
+- [x] structured_data チェック（JSON-LD抽出）
 - [ ] semantic_html チェック（見出し階層・alt・OGP）
 - [ ] freshness チェック（lastmod・sitemap.xml）
 - [ ] スコア合算ロジックと総合レポート完成版
